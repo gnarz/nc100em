@@ -65,7 +65,7 @@ GtkWidget *sdown_button,*sup_button;
 
 gulong blackpix,whitepix;
 
-int need_keyrep_restore=0;
+/* int need_keyrep_restore=0; */
 
 
 /* size of minimum rectangle of image which needs to be redrawn. */
@@ -83,8 +83,10 @@ void closedown(void)
  */
 gdk_image_destroy(image);
 
+/*
 if(need_keyrep_restore)
   gdk_key_repeat_restore();
+*/
 
 serial_uninit();
 }
@@ -471,11 +473,12 @@ return(TRUE);
 
 static gint focus_change_event(GtkWidget *widget,GdkEventFocus *event)
 {
+/*
 if(event->in)
   gdk_key_repeat_disable(),need_keyrep_restore=1;
 else
   gdk_key_repeat_restore(),need_keyrep_restore=0;
-
+*/
 return(FALSE);	/* just in case anything else needs it */
 }
 
@@ -591,7 +594,7 @@ win_height+=SW_BORDER_WIDTH+
 if(win_width>screen_width-HORIZ_MARGIN_WIDTH)
   win_width=screen_width-HORIZ_MARGIN_WIDTH;
 
-gtk_widget_set_usize(scrolled_window,win_width,win_height);
+gtk_widget_set_size_request(scrolled_window,win_width,win_height);
 }
 
 

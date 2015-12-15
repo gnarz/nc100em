@@ -36,8 +36,8 @@ XROOT=/usr/X11R6
 #
 # As I say, the default settings below should generally be ok.
 #
-CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -O -Wall \
-	-I$(XROOT)/include
+#CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -O -Wall -I$(XROOT)/include
+CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -g -Wall -I$(XROOT)/include
 
 # dest for make install
 #
@@ -90,19 +90,23 @@ tnc100em: $(TNC100EM_OBJS)
 xnc100em: $(XNC100EM_OBJS)
 	$(CC) -o xnc100em $(XNC100EM_OBJS) -L$(XROOT)/lib -lXext -lX11
 
+gnc100em: CFLAGS += $(shell pkg-config --cflags gtk+-2.0)
+gnc100em: LIBS = $(shell pkg-config --libs gtk+-2.0)
 gnc100em: $(GNC100EM_OBJS)
-	$(CC) -o gnc100em $(GNC100EM_OBJS) `gtk-config --libs`
+	$(CC) -o gnc100em $(GNC100EM_OBJS) $(LIBS)
 
+dnc100em: CFLAGS += $(shell pkg-config --cflags sdl)
+dnc100em: LIBS = $(shell pkg-config --libs sdl) -lm
 dnc100em: $(DNC100EM_OBJS)
 #	$(CC) -o dnc100em $(DNC100EM_OBJS)  `sdl-config --libs`
 #	$(CC) -framework SDL -framework AppKit -framework Cocoa -o dnc100em $(DNC100EM_OBJS)
 #  Compile a distrubution version (using Framework SDL on OS X) like this:
-	g++ -c -o SDMain.o  SDLMain.m
-	gcc -framework SDL -framework AppKit -framework Cocoa -o dnc100em sdlmain.o common.o libdir.o z80.o debug.o fdc.o SDMain.o
+	#g++ -c -o SDMain.o  SDLMain.m
+	gcc -o dnc100em sdlmain.o common.o libdir.o z80.o debug.o fdc.o $(LIBS)
 
 # special stuff needed for gtkmain.o
 gtkmain.o: gtkmain.c nc100.xpm
-	$(CC) $(CFLAGS) `gtk-config --cflags` -c gtkmain.c -o gtkmain.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -c gtkmain.c -o gtkmain.o
 
 zcntools: zcntools.o libdir.o
 	$(CC) -o zcntools zcntools.o libdir.o
