@@ -413,7 +413,7 @@ void mixaudio(void *unused, Uint8 *stream, int len) { /* create mixed audio data
 
 /* handle keypress events */
 void event_keydown(void) {
-	//printf("Keypressed: %i, modifier: %i\n", event.key.keysym.sym, event.key.keysym.mod);
+	//printf("Keypressed: %i, modifier: %i, name %s\n", event.key.keysym.sym, event.key.keysym.mod, SDL_GetKeyName(event.key.keysym.sym));
 	switch(event.key.keysym.sym) {
 		case SDLK_F5: case SDLK_F10:
 			do_nmi=1;
@@ -429,7 +429,7 @@ void event_keydown(void) {
 		case SDLK_INSERT: /* FUNCTION */
 		case SDLK_LGUI: case SDLK_RGUI:
 			keyports[1]|=0x01; break;
-		case SDLK_HOME: case SDLK_MENU: /* also works as SECRET/MENU key */
+		case SDLK_HOME: case SDLK_APPLICATION: /* also works as SECRET/MENU key */
 			keyports[7]|=0x10; break;
 		case SDLK_RETURN:
 			keyports[0]|=0x10; break;
@@ -523,12 +523,12 @@ void event_keydown(void) {
 
 /* handle key release events */
 void event_keyup(void) {
-	// printf("Key released: %i, modifier: %i\n", event.key.keysym.sym, event.key.keysym.mod);
+	// printf("Key released: %i, modifier: %i, name: %s\n", event.key.keysym.sym, event.key.keysym.mod, SDL_GetKeyName(event.key.keysym.sym));
 	switch(event.key.keysym.sym) {
 		case SDLK_INSERT:
 		case SDLK_LGUI: case SDLK_RGUI:
 			keyports[1]&=~0x01; break;
-		case SDLK_HOME: case SDLK_MENU: /* also works as SECRET/MENU key */
+		case SDLK_HOME: case SDLK_APPLICATION: /* also works as SECRET/MENU key */
 			keyports[7]&=~0x10; break;
 		case SDLK_RETURN:
 			keyports[0]&=~0x10; break;

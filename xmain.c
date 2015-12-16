@@ -460,6 +460,9 @@ static int process_keypress(XKeyEvent *kev)
       case XK_Super_L: case XK_Super_R:
       case XK_Hyper_L: case XK_Hyper_R:
               keyports[1]|=0x01; break;
+      case XK_Home: case XK_Menu:
+              keyports[7]|=0x10; break;
+
       case XK_Return: 
               keyports[0]|=0x10; break;
       case XK_Control_L:
@@ -564,6 +567,8 @@ static void process_keyrelease(XKeyEvent *kev)
       case XK_Super_L: case XK_Super_R:
       case XK_Hyper_L: case XK_Hyper_R:
               keyports[1]&=~0x01; break;
+      case XK_Home: case XK_Menu:
+              keyports[7]|=0x10; break;
 
       case XK_Return: 
               keyports[0]&=~0x10; break;

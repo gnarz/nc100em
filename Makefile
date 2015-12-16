@@ -55,37 +55,20 @@ XBINDIR=$(BINDIR)
 # this looks wrong, but *ops.c are actually #include'd by z80.c
 DNC100EM_OBJS=sdlmain.o common.o libdir.o z80.o debug.o fdc.o
 GNC100EM_OBJS=gtkmain.o common.o libdir.o z80.o debug.o fdc.o
-SNC100EM_OBJS=smain.o common.o libdir.o z80.o debug.o fdc.o
-TNC100EM_OBJS=txtmain.o common.o libdir.o z80.o debug.o fdc.o
 XNC100EM_OBJS=xmain.o common.o libdir.o z80.o debug.o fdc.o
 
 # All targets build the tty version, as that should work on all
 # machines any of the other versions work on. Ditto for zcntools.
 
-all: x vga tty zcntools
+all: x zcntools
 
-# svga allowed in case they can't read the README :^)
-svga: vga
-vga: snc100em tty zcntools
+x: gtk xlib zcntools
 
-x: gtk xlib tty zcntools
+xlib: xnc100em zcntools
 
-xlib: xnc100em tty zcntools
+gtk: gnc100em zcntools
 
-gtk: gnc100em tty zcntools
-
-sdl: dnc100em tty zcntools
-
-# text allowed as that was the old name for this target
-text: tty
-tty: tnc100em zcntools
-
-
-snc100em: $(SNC100EM_OBJS)
-	$(CC) -o snc100em $(SNC100EM_OBJS) -lvgagl -lvga
-
-tnc100em: $(TNC100EM_OBJS)
-	$(CC) -o tnc100em $(TNC100EM_OBJS)
+sdl: dnc100em zcntools
 
 xnc100em: $(XNC100EM_OBJS)
 	$(CC) -o xnc100em $(XNC100EM_OBJS) -L$(XROOT)/lib -lXext -lX11
@@ -159,9 +142,6 @@ clean:
 
 
 common.o: common.c pdrom.h z80.h libdir.h
-txtmain.o: smain.c
-	$(CC) $(CFLAGS) -DTEXT_VER -c smain.c -o txtmain.o
-
 
 VERS=1.2
 
