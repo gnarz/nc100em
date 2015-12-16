@@ -54,6 +54,7 @@ int force_full_redraw=1;
 int force_pd_rom=0;
 int using_pd_rom=0;
 int allow_serial=0;
+char *serial_name = 0;
 int alt_colour_msg=0;	/* alter ROM colour msgs (e.g. "RED" -> "LEFT") */
 
 unsigned char keyports[10]={0,0,0,0,0, 0,0,0,0,0};
@@ -320,11 +321,17 @@ void serial_init(void)
 
 if(!allow_serial) return;
 
-/* the -echo is really for tnc100em, but doesn't hurt anyway */
-system("stty raw -echo");
-
-/* make stdin non-blocking */
-fcntl(0,F_SETFL,O_NONBLOCK);
+if (serial_name)
+  {
+    tty_fd = open(serial_name, O_RDWR);
+  }
+  else
+  {
+  /* the -echo is really for tnc100em, but doesn't hurt anyway */
+  system("stty raw -echo");
+  }
+  /* make tty non-blocking */
+  fcntl(tty_fd,F_SETFL,O_NONBLOCK);
 }
 
 
@@ -332,11 +339,19 @@ void serial_uninit(void)
 {
 if(!allow_serial) return;
 
-/* make stdin blocking again */
-fcntl(0,F_SETFL,0);
+if (serial_name)
+  {
+    close(tty_fd);
+    tty_fd = 0;
+  }
+  else
+  {
+  /* make stdin blocking again */
+  fcntl(0,F_SETFL,0);
 
-/* XXX also crap */
-system("stty -raw echo");
+  /* XXX also crap */
+  system("stty -raw echo");
+  }
 }
 
 
@@ -948,7 +963,6 @@ printf("  %s is the ",cmd_name);
 switch(*cmd_name)
   {
   case 'g': printf("GTK+"); break;
-  case 's': printf("svgalib"); break;
   case 'x': printf("Xlib"); break;
   case 'd': printf("SDL"); break;
   default:
@@ -971,9 +985,9 @@ printf("\n"
 "\t\tUseful if you want to boot a file.\n"
 "\t-r\tset how often the screen is redrawn in 1/100ths of a second\n"
 "\t\t(5 by default).\n"
-"\t-s\tenable serial I/O on stdin/stdout. Only relevant to\n"
-"\t\tX versions (not supported in svgalib version, and always\n"
-"\t\tenabled in tnc100em).\n"
+"\t-s\tenable serial I/O on file. If argument is -, file is stdin/\n"
+"\t\tstdout, otherwise it is the argument. Only relevant to\n"
+"\t\tX versions.\n"
 "\t-S\tset scaling factor in range 1..4 (only has an effect in\n"
 "\t\tgnc100em).\n"
 "\n"
@@ -990,7 +1004,7 @@ int done=0;
 opterr=0;
 
 do
-  switch(getopt(argc,argv,"d25hmpr:sS:"))
+  switch(getopt(argc,argv,"d25hmpr:s:S:"))
     {
     case 'd':
       printf("running in debug mode...\n");
@@ -1020,6 +1034,9 @@ do
       break;
     case 's':	/* enable serial emulation (only affects [gx]nc100em) */
       allow_serial=1;
+      if (strcmp(optarg, "-") != 0) {
+        serial_name = strdup(optarg);
+      }
       break;
     case 'S':	/* set scale factor */
       default_scale=atoi(optarg);
@@ -1037,6 +1054,11 @@ do
         case 'S':
           fprintf(stderr,"%s: "
           	"the -S option needs a scaling factor argument.\n",
+                cmd_name);
+          break;
+        case 's':
+          fprintf(stderr,"%s: "
+            "the -s option needs a device name argument.\n",
                 cmd_name);
           break;
         default:

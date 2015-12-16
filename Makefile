@@ -9,7 +9,7 @@ CC=gcc
 # common culprit. This is where it is on my Linux box, and probably on
 # most other XFree86-using systems:
 #
-XROOT=/usr/X11R6
+XROOT=/usr
 
 # There are various compile-time options. Generally you won't want to
 # change the `CFLAGS' line below, but they're described below in case
@@ -44,10 +44,6 @@ CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -g -Wall -I$(XROOT)/include
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/man/man1
-XBINDIR=$(BINDIR)
-# if you want the X versions to be installed in the usual X executables
-# directory, uncomment this:
-#XBINDIR=$(XROOT)/bin
 
 # you shouldn't need to edit the rest
 #-----------------------------------------------------------------
@@ -103,32 +99,41 @@ pdrom.bin: pdrom.z
 	zmac pdrom.z
 
 installdirs:
-	/bin/sh ./mkinstalldirs $(BINDIR) $(XBINDIR) $(MANDIR)
+	/bin/sh ./mkinstalldirs $(BINDIR) $(BINDIR) $(MANDIR)
 
 install: installdirs
+	install -m 644 nc100em.1 makememcard.1 $(MANDIR)
+
 	if [ -f gnc100em ]; then \
-	install -m 755 -s gnc100em $(XBINDIR); fi
-	if [ -f snc100em ]; then \
-	install -o root -m 4755 -s snc100em $(BINDIR); fi
-	if [ -f tnc100em ]; then \
-	install -m 755 -s tnc100em $(BINDIR); fi
+	install -m 755 -s gnc100em $(BINDIR); \
+	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/gnc100em.1; \
+	fi
+
 	if [ -f xnc100em ]; then \
-	install -m 755 -s xnc100em $(XBINDIR); fi
-	install -m 755 -s zcntools $(BINDIR)
+	install -m 755 -s xnc100em $(BINDIR); \
+	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/xnc100em.1; \
+	fi
+
+	if [ -f dnc100em ]; then \
+	install -m 755 -s dnc100em $(BINDIR); \
+	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/dnc100em.1; \
+	fi
+
 	install -m 755 makememcard.sh $(BINDIR)/makememcard
-	install -m 644 nc100em.1 makememcard.1 zcntools.1 $(MANDIR)
-	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/gnc100em.1
-	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/snc100em.1
-	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/tnc100em.1
-	ln -sf $(MANDIR)/nc100em.1 $(MANDIR)/xnc100em.1
+
+	if [ -f znctools ]; then \
+	install -m 755 -s zcntools $(BINDIR); \
+	install -m 644 nc100em.1 makememcard.1 zcntools.1 $(MANDIR); \
+	
 	for i in cat df format get info ls put ren rm zero; do \
 	  ln -sf $(BINDIR)/zcntools $(BINDIR)/zcn$$i; \
 	  ln -sf $(MANDIR)/zcntools.1 $(MANDIR)/zcn$$i.1; \
-	done
+	done; \
+	fi
 
 # we also blast any `nc100em' executable, in case they had a previous version.
 uninstall:
-	$(RM) $(BINDIR)/{,s,t}nc100em $(XBINDIR)/[gx]nc100em
+	$(RM) $(BINDIR)/[dgx]nc100em
 	$(RM) $(BINDIR)/makememcard
 	$(RM) $(BINDIR)/zcntools
 	$(RM) $(MANDIR)/{,g,s,t,x}nc100em.1* $(MANDIR)/zcntools.1*
@@ -143,7 +148,7 @@ clean:
 
 common.o: common.c pdrom.h z80.h libdir.h
 
-VERS=1.2
+VERS=1.2.1
 
 tgz: ../nc100em-$(VERS).tar.gz
   
