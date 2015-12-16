@@ -28,7 +28,7 @@
 #include <unistd.h>
 #include <math.h> /* for sin() used by audio interface */
 
-#include <SDL/SDL.h>
+#include <SDL2/SDL.h>
 
 
 #include "common.h"
@@ -36,19 +36,6 @@
 
 // for debugger
 int breakpoint;
-
-/* GTK+ border width in scrolled window (not counting scrollbars).
- * very kludgey, but needed for calculating size to fit scrolly win to.
- */
-#define SW_BORDER_WIDTH		4
-
-/* since the window can get big horizontally, we limit the max width
- * to screen_width minus this.
- */
-#define HORIZ_MARGIN_WIDTH	20
-
-/* width of the border (on all sides) around the actual screen image. */
-#define BORDER_WIDTH		5
 
 /* sample frequencdy for audio output */
 #define AUDIO_SAMPLE_FREQ 44100
@@ -62,9 +49,10 @@ int scale;
 int hsize,vsize;
 
 Uint32 initflags = SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO;  /* parts of SDL to initialize */
-SDL_Surface *screen;
+SDL_Window *window = 0;
+SDL_Renderer *rend = 0;
+SDL_WindowFlags windowflags = 0;
 Uint8  video_bpp = 0;
-Uint32 videoflags = SDL_SWSURFACE;
 SDL_Event event;
 
 int need_keyrep_restore=0;
@@ -268,17 +256,27 @@ for(y=ysc=0;y<lines;y++,ramptr+=4,ysc+=scale)
         /* we test for max after (saves some maths :-)) */
         
         for(mask=128,val=*ramptr;mask;mask>>=1,x++,xsc+=scale)
-          if(scale==1)
-            // gdk_image_put_pixel(image,x,y,(val&mask)?blackpix:whitepix);
-            putpixel(screen,x,y,(val&mask)?blackpix:whitepix);
-          else
+          if(scale==1) {
+            if (val & mask) {
+            	SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
+            } else {
+            	SDL_SetRenderDrawColor(rend, 255, 255, 255, 255);
+            }
+            SDL_RenderDrawPoint(rend,x,y);
+          } else
             {
             /* XXX is this really the fastest way? */
-            for(b=0;b<scale;b++)
-              for(a=0;a<scale;a++)
-                putpixel(screen,xsc+a,ysc+b,(val&mask)?blackpix:whitepix);
+            for(b=0;b<scale;b++) {
+            	for(a=0;a<scale;a++) {
+		            if (val & mask) {
+		            	SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
+		            } else {
+		            	SDL_SetRenderDrawColor(rend, 255, 255, 255, 255);
+		            }
+		            SDL_RenderDrawPoint(rend,xsc+a,ysc+b);
+		        }
             }
-        
+          }
         /* xsc now points to first pixel not updated */
         if(xsc-1>xmax) xmax=xsc-1;
         }
@@ -287,7 +285,7 @@ for(y=ysc=0;y<lines;y++,ramptr+=4,ysc+=scale)
     }
 
 force_full_redraw=0;
-SDL_Flip(screen);
+SDL_RenderPresent(rend);
 
 if(changed && areap)
   {
@@ -322,27 +320,29 @@ void initwindow(void) { /* SDL library and Video initilaization */
 		fprintf(stderr, "Couldn't initialize SDL: %s\n", SDL_GetError());
 		exit(1);
 	}
+	atexit(SDL_Quit);
 	
 	/* Set appropriate video mode */
-	screen=SDL_SetVideoMode(hsize, vsize, video_bpp, videoflags);
-	if (screen == NULL) {
-		fprintf(stderr, "Couldn't set %ix%ix%d video mode: %s\n",
-		hsize, vsize, video_bpp, SDL_GetError());
-		SDL_Quit();
+	window = SDL_CreateWindow(nc200?"nc100em (NC200)":nc150?"nc100em (NC150)":"nc100em", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, hsize, vsize, windowflags);
+	if (!window) {
+		fprintf(stderr, "Couldn't create window: %s\n", SDL_GetError());
 		exit(2);
 	}
-	
+	rend = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+	if (!rend) {
+		rend = SDL_CreateRenderer(window, -1, 0);
+	}
+	if (!rend) {
+		fprintf(stderr, "Couldn't create renderer: %s\n", SDL_GetError());
+		exit(2);
+	}
+
 	/* Set coorect size */
 	set_size();
 	
 	/* set window title */
-	SDL_WM_SetCaption(nc200?"nc100em (NC200)":nc150?"nc100em (NC150)":"nc100em",0);
 	update_scrn(1,NULL);	/* the 1 forces it to ignore scrn_freq, and run */
-	
-	/* define colors for black and white pixels */
-	blackpix = SDL_MapRGB(screen->format, 0x00, 0x00, 0x00);
-	whitepix = SDL_MapRGB(screen->format, 0xff, 0xff, 0xff);
-	
+
 	/* done */
 }
 
@@ -427,10 +427,9 @@ void event_keydown(void) {
 			break;
 	
 		case SDLK_INSERT: /* FUNCTION */
-		case SDLK_LSUPER: case SDLK_RSUPER:
-		case SDLK_LMETA: case SDLK_RMETA:
+		case SDLK_LGUI: case SDLK_RGUI:
 			keyports[1]|=0x01; break;
-		case SDLK_HOME: /* also works as SECRET/MENU key */
+		case SDLK_HOME: case SDLK_MENU: /* also works as SECRET/MENU key */
 			keyports[7]|=0x10; break;
 		case SDLK_RETURN:
 			keyports[0]|=0x10; break;
@@ -506,6 +505,7 @@ void event_keydown(void) {
 			keyports[6]|=0x20; break;
 		case SDLK_BACKSLASH:
 			keyports[7]|=0x04; break;
+		/*
 		// german umlauts mapped to corresponding keys on US layout
 		case SDLK_WORLD_2: // Umlaut-U
 			keyports[8]|=0x08; break;
@@ -513,6 +513,7 @@ void event_keydown(void) {
 			keyports[8]|=0x10; break;
 		case SDLK_WORLD_4: // Umlaut-O
 			keyports[9]|=0x10; break;
+		*/
 		default:
 		    if(event.key.keysym.sym>=32 && event.key.keysym.sym<128)
 		    	keyports[keytable[event.key.keysym.sym-32].port]|=
@@ -525,10 +526,9 @@ void event_keyup(void) {
 	// printf("Key released: %i, modifier: %i\n", event.key.keysym.sym, event.key.keysym.mod);
 	switch(event.key.keysym.sym) {
 		case SDLK_INSERT:
-		case SDLK_LSUPER: case SDLK_RSUPER:
-		case SDLK_LMETA: case SDLK_RMETA:
+		case SDLK_LGUI: case SDLK_RGUI:
 			keyports[1]&=~0x01; break;
-		case SDLK_HOME: /* also works as SECRET/MENU key */
+		case SDLK_HOME: case SDLK_MENU: /* also works as SECRET/MENU key */
 			keyports[7]&=~0x10; break;
 		case SDLK_RETURN:
 			keyports[0]&=~0x10; break;
@@ -604,6 +604,7 @@ void event_keyup(void) {
 			keyports[6]&=~0x20; break;
 		case SDLK_BACKSLASH:
 			keyports[7]&=~0x04; break;
+		/*
 		// german umlauts mapped to corresponding keys on US layout
 		case SDLK_WORLD_2: // Umlaut-U
 			keyports[8]&=~0x08; break;
@@ -611,6 +612,7 @@ void event_keyup(void) {
 			keyports[8]&=~0x10; break;
 		case SDLK_WORLD_4: // Umlaut-O
 			keyports[9]&=~0x10; break;			
+		*/
 		default:
 		    if(event.key.keysym.sym>=32 && event.key.keysym.sym<128)
 		    	keyports[keytable[event.key.keysym.sym-32].port]&=

@@ -95,8 +95,8 @@ gnc100em: LIBS = $(shell pkg-config --libs gtk+-2.0)
 gnc100em: $(GNC100EM_OBJS)
 	$(CC) -o gnc100em $(GNC100EM_OBJS) $(LIBS)
 
-dnc100em: CFLAGS += $(shell pkg-config --cflags sdl)
-dnc100em: LIBS = $(shell pkg-config --libs sdl) -lm
+dnc100em: CFLAGS += $(shell pkg-config --cflags sdl2)
+dnc100em: LIBS = $(shell pkg-config --libs sdl2) -lm
 dnc100em: $(DNC100EM_OBJS)
 #	$(CC) -o dnc100em $(DNC100EM_OBJS)  `sdl-config --libs`
 #	$(CC) -framework SDL -framework AppKit -framework Cocoa -o dnc100em $(DNC100EM_OBJS)
