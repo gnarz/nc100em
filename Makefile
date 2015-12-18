@@ -56,15 +56,15 @@ XNC100EM_OBJS=xmain.o common.o libdir.o z80.o debug.o fdc.o
 # All targets build the tty version, as that should work on all
 # machines any of the other versions work on. Ditto for zcntools.
 
-all: x zcntools
+all: x
 
-x: gtk xlib zcntools
+x: gtk xlib zcntools ncconvert
 
-xlib: xnc100em zcntools
+xlib: xnc100em zcntools ncconvert
 
-gtk: gnc100em zcntools
+gtk: gnc100em zcntools ncconvert
 
-sdl: dnc100em zcntools
+sdl: dnc100em zcntools ncconvert
 
 xnc100em: $(XNC100EM_OBJS)
 	$(CC) -o xnc100em $(XNC100EM_OBJS) -L$(XROOT)/lib -lXext -lX11
@@ -86,6 +86,9 @@ dnc100em: $(DNC100EM_OBJS)
 # special stuff needed for gtkmain.o
 gtkmain.o: gtkmain.c nc100.xpm
 	$(CC) $(CFLAGS) $(LDFLAGS) -c gtkmain.c -o gtkmain.o
+
+ncconvert: ncconvert.o mini_utf8.h
+	$(CC) -o $@ $<
 
 zcntools: zcntools.o libdir.o
 	$(CC) -o zcntools zcntools.o libdir.o
@@ -123,8 +126,14 @@ install: installdirs
 
 	if [ -f znctools ]; then \
 	install -m 755 -s zcntools $(BINDIR); \
-	install -m 644 nc100em.1 makememcard.1 zcntools.1 $(MANDIR); \
+	install -m 644 zcntools.1 $(MANDIR); \
+	fi
 	
+	if [ -f ncconvert ]; then \
+	install -m 755 -s ncconvert $(BINDIR); \
+	#install -m 644 ncconvert.1 $(MANDIR); \
+	fi
+
 	for i in cat df format get info ls put ren rm zero; do \
 	  ln -sf $(BINDIR)/zcntools $(BINDIR)/zcn$$i; \
 	  ln -sf $(MANDIR)/zcntools.1 $(MANDIR)/zcn$$i.1; \
@@ -142,7 +151,7 @@ uninstall:
 	done
 
 clean:
-	$(RM) *.o *~ *.lst [dgstx]nc100em zcntools
+	$(RM) *.o *~ *.lst [dgstx]nc100em zcntools ncconvert
 	$(RM) mkpdromhdr pdrom.h
 
 

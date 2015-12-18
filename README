@@ -19,7 +19,8 @@ My changes are:
   stdin/stdout. For example, the command
     socat -d -d PTY,raw,echo=0 PTY,raw,echo=0
   creates a nice serial device emulator, whose ends are output by the command.
-  You can specify the oepen end with -s, and use the other end with cat or sx
+  You can specify the open end with -s, and use the other end with cat or sx
   or what have you... stdin/stdout is still available by passing - as an arg
   to -s
 - some cleanups in the Makefile
+- added ncconvert
