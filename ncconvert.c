@@ -343,6 +343,10 @@ void error(const char* msg)
 	exit(1);
 }
 
+/* conversions are done by doing a linear search through the above chars
+ * array. While this is hardly optimal, we're dealing with files a lot smaller
+ * than 64KB, and modern machines do this in the blink of an eye...
+ */
 uint8_t find_utf8(uint32_t u8)
 {
 	if (u8 < 32) {
@@ -378,7 +382,8 @@ void utf8_to_eascii(FILE *in, FILE *out, int addln)
 					}
 					lineno += addln;
 					bol = 0;
-				} else if (u8ch == '\n') {
+				}
+				if (u8ch == '\n') {
 					bol = 1;
 				}
 			}
@@ -408,16 +413,26 @@ void eascii_to_utf8(FILE *in, FILE *out, int remln)
 {
 	char u8buf[4];
 	uint32_t u8ch;
-	int each = fgetc(in), u8len, cnt, bol = 1;
+	int each = fgetc(in), u8len, cnt, bol = 1, numsp = 0;
 	while (!feof(in)) {
 		u8ch = find_eascii(each);
 		if (remln) {
 			if (bol) {
-				if (u8ch >= '0' && u8ch < '9') {
+				if (u8ch == ' ') {
+					++numsp;
 					each = fgetc(in);
 					continue;
 				}
+				if (u8ch >= '0' && u8ch <= '9') {
+					each = fgetc(in);
+					numsp = 0;
+					continue;
+				}
 				bol = 0;
+				for (cnt = 0; cnt < numsp; ++cnt) {
+					fputc(' ', out);
+				}
+				numsp = 0;
 				if (u8ch == ' ') {
 					each = fgetc(in);
 					continue;

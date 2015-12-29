@@ -1,5 +1,8 @@
 # makefile for nc100em
 
+# version
+VERS=1.2.1
+
 # You need an ANSI C compiler. gcc is probably best.
 #
 CC=gcc
@@ -34,10 +37,13 @@ XROOT=/usr
 #  if the X server is local (running on the same machine) and supports
 #  it. Don't remove it unless you have problems compiling.
 #
+# -DDEBUG enables extra debugging output from various parts of the emulator.
+#  You won't need this for normal operation.
+#
 # As I say, the default settings below should generally be ok.
 #
-#CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -O -Wall -I$(XROOT)/include
-CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -g -Wall -I$(XROOT)/include
+CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -Os -Wall -I$(XROOT)/include
+#CFLAGS=-DMITSHM -DUSE_MMAP_FOR_CARD -DSCALE=1 -g -DDEBUG -Wall -I$(XROOT)/include
 
 # dest for make install
 #
@@ -49,49 +55,64 @@ MANDIR=$(PREFIX)/man/man1
 #-----------------------------------------------------------------
 
 # this looks wrong, but *ops.c are actually #include'd by z80.c
-DNC100EM_OBJS=sdlmain.o common.o libdir.o z80.o debug.o fdc.o
-GNC100EM_OBJS=gtkmain.o common.o libdir.o z80.o debug.o fdc.o
-XNC100EM_OBJS=xmain.o common.o libdir.o z80.o debug.o fdc.o
+COMMON_OBJS=common.o libdir.o z80.o debug.o fdc.o
+DNC100EM_OBJS=sdlmain.o $(COMMON_OBJS)
+GNC100EM_OBJS=gtkmain.o $(COMMON_OBJS)
+XNC100EM_OBJS=xmain.o $(COMMON_OBJS)
 
 # All targets build the tty version, as that should work on all
 # machines any of the other versions work on. Ditto for zcntools.
 
-all: x
+all:;
+	@echo "choose one or more of these targets:"
+	@echo "  x         builds xlib and gtk versions"
+	@echo "  xlib      builds xlib version"
+	@echo "  gtk       builds gtk version"
+	@echo "  sdl       builds sdl version"
+	@echo "  tools     builds ncconvert"
+	@echo "  zcn       builds zcntools"
+	@echo "  install   installs all built tools below \$$(PREFIX)"
+	@echo "  uninstall removes all installed files below \$$(PREFIX)"
+	@echo "  clean     cleans source directory"
+	@echo "  tgz       builds compressed tarball of source directory"
 
-x: gtk xlib zcntools ncconvert
+x: gtk xlib
 
-xlib: xnc100em zcntools ncconvert
+xlib: xnc100em
 
-gtk: gnc100em zcntools ncconvert
+gtk: gnc100em
 
-sdl: dnc100em zcntools ncconvert
+sdl: dnc100em
 
+tools: ncconvert
+
+zcn: zcntools
+
+xnc100em: LIBS=-L$(XROOT)/lib -lXext -lX11
 xnc100em: $(XNC100EM_OBJS)
-	$(CC) -o xnc100em $(XNC100EM_OBJS) -L$(XROOT)/lib -lXext -lX11
+	$(CC) -o $@ $^ $(LIBS)
 
 gnc100em: CFLAGS += $(shell pkg-config --cflags gtk+-2.0)
 gnc100em: LIBS = $(shell pkg-config --libs gtk+-2.0)
 gnc100em: $(GNC100EM_OBJS)
-	$(CC) -o gnc100em $(GNC100EM_OBJS) $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
 
 dnc100em: CFLAGS += $(shell pkg-config --cflags sdl2)
 dnc100em: LIBS = $(shell pkg-config --libs sdl2) -lm
 dnc100em: $(DNC100EM_OBJS)
-#	$(CC) -o dnc100em $(DNC100EM_OBJS)  `sdl-config --libs`
-#	$(CC) -framework SDL -framework AppKit -framework Cocoa -o dnc100em $(DNC100EM_OBJS)
-#  Compile a distrubution version (using Framework SDL on OS X) like this:
-	#g++ -c -o SDMain.o  SDLMain.m
-	gcc -o dnc100em sdlmain.o common.o libdir.o z80.o debug.o fdc.o $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
 
 # special stuff needed for gtkmain.o
 gtkmain.o: gtkmain.c nc100.xpm
-	$(CC) $(CFLAGS) $(LDFLAGS) -c gtkmain.c -o gtkmain.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ -c $<
+
+common.o: common.c pdrom.h z80.h libdir.h
 
 ncconvert: ncconvert.o mini_utf8.h
 	$(CC) -o $@ $<
 
 zcntools: zcntools.o libdir.o
-	$(CC) -o zcntools zcntools.o libdir.o
+	$(CC) -o $@ $^
 
 pdrom.h: pdrom.bin mkpdromhdr
 	./mkpdromhdr <pdrom.bin >pdrom.h
@@ -143,9 +164,11 @@ install: installdirs
 # we also blast any `nc100em' executable, in case they had a previous version.
 uninstall:
 	$(RM) $(BINDIR)/[dgx]nc100em
+	$(RM) $(BINDIR)/ncconvert
 	$(RM) $(BINDIR)/makememcard
 	$(RM) $(BINDIR)/zcntools
-	$(RM) $(MANDIR)/{,g,s,t,x}nc100em.1* $(MANDIR)/zcntools.1*
+	$(RM) $(MANDIR)/*nc100em.1
+	$(RM) $(MANDIR)/zcntools.1 $(MANDIR)/makememcard.1
 	for i in cat df format get info ls put ren rm zero; do \
 	  $(RM) $(BINDIR)/zcn$$i $(MANDIR)/zcn$$i.1*; \
 	done
@@ -154,10 +177,6 @@ clean:
 	$(RM) *.o *~ *.lst [dgstx]nc100em zcntools ncconvert
 	$(RM) mkpdromhdr pdrom.h
 
-
-common.o: common.c pdrom.h z80.h libdir.h
-
-VERS=1.2.1
 
 tgz: ../nc100em-$(VERS).tar.gz
   

@@ -34,9 +34,7 @@ unsigned char fdc_getmainstatus(void) { // return main status register
 		fdc_status_main|=MAIN_RQM; // set RQM, so that the controller will be ready next time *EXPERIMENTAL CODE*
 	}
 
-#ifdef FDC_DEBUG
-	printf("Main Status Register read, 0x%02x\n", fdc_status_main);
-#endif
+	debugmsg("Main Status Register read, 0x%02x\n", fdc_status_main);
 
 	return fdc_status_main;	
 }
@@ -60,18 +58,15 @@ unsigned char fdc_read(void) { // Read byte from data register
 			break;
 	}
 	
-#ifdef FDC_DEBUG
-	printf("FDC DATA READ, 0x%02x\n", output);
-#endif	
+	debugmsg("FDC DATA READ, 0x%02x\n", output);
 	
 	return output;
 }
 
 void fdc_write(unsigned char a) { // Write byte to data register
 	static int cmdlen = 9; // length of FDC command
-#ifdef FDC_DEBUG	
-	printf("FDC DATA WRITE = 0x%x\n", a);
-#endif	
+	debugmsg("FDC DATA WRITE = 0x%x\n", a);
+
 	switch(phase) {
 		case P_COMMAND:
 			fdccommand[CmdByte] = a; // store part of command
@@ -105,7 +100,7 @@ void fdc_write(unsigned char a) { // Write byte to data register
 						break;
 					default: // Invalid Command
 						cmdlen = 1;
-						printf("Invalid FDC Command received: 0x%x\n", a);
+						debugmsg("Invalid FDC Command received: 0x%x\n", a);
 						break;	
 				}
 			// Set CB (Busy) flag
@@ -118,32 +113,32 @@ void fdc_write(unsigned char a) { // Write byte to data register
 						fdc_read_data();
 						break;
 					case CMD_READDELETEDDATA:
-						printf("*** Unimplemented FDC Command READ DELETED DATA\n");
+						debugmsg("*** Unimplemented FDC Command READ DELETED DATA\n");
 						break;
 					case CMD_WRITEDATA:
-						printf("*** Unimplemented FDC Command WRITE DATA\n");
+						debugmsg("*** Unimplemented FDC Command WRITE DATA\n");
 						break;
 					case CMD_WRITEDELETEDDATA:
-						printf("*** Unimplemented FDC Command WRITE DELETED DATA\n");
+						debugmsg("*** Unimplemented FDC Command WRITE DELETED DATA\n");
 						break;
 					case CMD_READDIAGNOSTIC:
-						printf("*** Unimplemented FDC Command READ DIAGNOSTIC\n");
+						debugmsg("*** Unimplemented FDC Command READ DIAGNOSTIC\n");
 						break;
 					case CMD_READID:
 						// Read sector ID
 						fdc_read_id();
 						break;
 					case CMD_WRITEID:
-						printf("*** Unimplemented FDC Command WRITE ID\n");
+						debugmsg("*** Unimplemented FDC Command WRITE ID\n");
 						break;
 					case CMD_SCANEQUAL:
-						printf("*** Unimplemented FDC Command SCAN EQUAL\n");
+						debugmsg("*** Unimplemented FDC Command SCAN EQUAL\n");
 						break;
 					case CMD_SCANLOWEQUAL:
-						printf("*** Unimplemented FDC Command SCAN LOW OR EQUAL\n");
+						debugmsg("*** Unimplemented FDC Command SCAN LOW OR EQUAL\n");
 						break;
 					case CMD_SCANHIGHEQUAL:
-						printf("*** Unimplemented FDC Command SCAN HIGH OR EQUAL\n");
+						debugmsg("*** Unimplemented FDC Command SCAN HIGH OR EQUAL\n");
 						break;
 					case CMD_RECALIBRATE:
 						// Reset to track 0
@@ -159,10 +154,10 @@ void fdc_write(unsigned char a) { // Write byte to data register
 						fdc_status_main&=~MAIN_CB; // Clear CB (busy) flag
 						break;
 					case CMD_SENSEDRV:
-						printf("*** Unimplemented FDC Command SENSE DRIVE\n");
+						debugmsg("*** Unimplemented FDC Command SENSE DRIVE\n");
 						break;
 					case CMD_VERSION:
-						printf("*** Unimplemented FDC Command VERSION\n");
+						debugmsg("*** Unimplemented FDC Command VERSION\n");
 						break;
 					case CMD_SEEK:
 						// Seek to a specified track
@@ -182,7 +177,7 @@ void fdc_write(unsigned char a) { // Write byte to data register
 }
 
 void fdc_terminalcount(void) { // Terminal Count
-	printf("*** TC set\n");
+	debugmsg("*** TC set\n");
 	if (phase == P_EXECUTION) { // if in EXECUTION phase
 		phase = P_RESULT; // stop it and enter RESULT phase
 		fdc_status_main&=~MAIN_EXM; // clear EXM (execution mode) flag
@@ -219,11 +214,11 @@ int fdc_insertdisc(void) { // Inserts a disc into virtual drive
 		i++;
 	}
 	
-	printf("Reserved bytes: %i, Read last: %i\n",DISKSIZE*sizeof(unsigned char),i-1);
+	debugmsg("Reserved bytes: %i, Read last: %i\n",DISKSIZE*sizeof(unsigned char),i-1);
 	
 	// close file
 	fclose(fileptr);
-	printf("Disc opened successfull.\n");
+	debugmsg("Disc opened successful.\n");
 	return 1;
 }
 
@@ -231,7 +226,7 @@ int fdc_insertdisc(void) { // Inserts a disc into virtual drive
 
 /* Read Data */
 void fdc_read_data(void) {
-	printf("Reading Sector %i at Track %i, Head %i\n", fdccommand[4], fdc_track, fdccommand[3]);
+	debugmsg("Reading Sector %i at Track %i, Head %i\n", fdccommand[4], fdc_track, fdccommand[3]);
 	
 	// gather data for result phase
 	fdc_setresult(fdc_track, fdccommand[3], fdccommand[4]);
@@ -254,7 +249,7 @@ void fdc_read_data(void) {
 void fdc_read_id(void) {
 	int head = (fdccommand[1]&0x04)>>2;
 	
-	printf("Reading Sector ID at Track %i, Head %i\n", fdc_track, fdccommand[1]);
+	debugmsg("Reading Sector ID at Track %i, Head %i\n", fdc_track, fdccommand[1]);
 	
 	// gather result data to send to CPU
 	fdc_setresult(fdc_track, head, 1);
@@ -291,7 +286,7 @@ void fdc_seek(int track) {
 	int head = (fdccommand[1]&0x04)>>2;
 	
 	// Only one drive supported, so there is only one 'track' variable
-	printf("Seeking to Track %i\n", track);
+	debugmsg("Seeking to Track %i\n", track);
 	fdc_track = track;
 	if (track == 0) 
 		fdc_status[3]|=S3_T0; // Set 'Track 0' flag if track is 0
@@ -331,7 +326,7 @@ void fdc_setresult(int track, int head, int sector) {
 	resultlen = 7;
 	ResByte = 0;
 
-	printf("Setting command result: R0:%02X R1:%02X R2:%02X TRACK:%i HEAD:%i SECTOR:%i\n", fdc_status[0], fdc_status[1], fdc_status[2], track, head, sector);
+	debugmsg("Setting command result: R0:%02X R1:%02X R2:%02X TRACK:%i HEAD:%i SECTOR:%i\n", fdc_status[0], fdc_status[1], fdc_status[2], track, head, sector);
 }
 
 unsigned char fdc_sendbyte(void) { // Send byte form disc to CPU

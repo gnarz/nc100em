@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -74,7 +75,37 @@ FILE *printout=NULL;
 int nc200=0;	/* default to NC100 */
 int nc150=0;
 
+void emsg(const char* type, const char* msg, va_list ap)
+{
+  fputs(type, stderr);
+  fputs(": ", stderr);
+  vfprintf(stderr, msg, ap);
+}
 
+void debugmsg(const char* msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	emsg("DEBUG", msg, ap);
+	va_end(ap);
+}
+
+void error(const char* msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	emsg("Error", msg, ap);
+	va_end(ap);
+}
+
+void fatal(const char* msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	emsg("Fatal", msg, ap);
+	va_end(ap);
+	exit(1);
+}
 
 /* the card_status flag never changes after this */
 void set_card_status(void)
@@ -102,7 +133,7 @@ if(!force_pd_rom &&
 else
   {
   if(!force_pd_rom)
-    fprintf(stderr,"%s: no ROM found, using builtin PD `ROM'.\n",cmd_name);
+    DEBUGMSG("%s: no ROM found, using builtin PD `ROM'.\n",cmd_name);
   memcpy(x,pd_rom,sizeof(pd_rom));
   using_pd_rom=1;
   return;
@@ -156,7 +187,7 @@ if(!nc200 && alt_colour_msg)
           strcpy(mem+addr,changed[f]),found=1;
     
     if(!found)
-      fprintf(stderr,"%s: couldn't change \"%s\" colour key message\n",
+      DEBUGMSG("%s: couldn't change \"%s\" colour key message\n",
       	cmd_name,orig[f]);
     }
   }
@@ -175,7 +206,7 @@ if((in=fopen(ram_file,"rb"))!=NULL)
   }
 else
   {
-  fprintf(stderr,"%s: couldn't load RAM file `%s', using blank.\n",
+  DEBUGMSG("%s: couldn't load RAM file `%s', using blank.\n",
   	cmd_name,ram_file);
   /* not fatal - blank it and carry on */
   memset(x,0,((nc200|nc150)?128:64)*1024);
@@ -197,27 +228,28 @@ if((in=fopen(card_file,"r+"))!=NULL)
 #ifndef USE_MMAP_FOR_CARD
   rewind(in);
   if((cardmem=malloc(card_size*1024))==NULL)
-    fprintf(stderr,"%s: out of memory.\n",cmd_name),exit(1);
+    {
+    fatal("%s: out of memory.\n",cmd_name);
+    }
   fread(cardmem,1024,card_size,in);
   fclose(in);
 #else
   if((cardmem=mmap(0,card_size*1024,PROT_READ|PROT_WRITE,
   	MAP_SHARED,fileno(in),0))==MAP_FAILED)
     {
-    fprintf(stderr,"%s: couldn't mmap() mem card file `%s'.\n",
-    	cmd_name,card_file);
-    exit(1);
+    fatal("%s: couldn't mmap() mem card file `%s'.\n", cmd_name,card_file);
     }
 #endif /* USE_MMAP_FOR_CARD */
   }
 else /* if fopen failed */
   {
-  fprintf(stderr,"%s: couldn't open mem card file `%s'.\n",
-  	cmd_name,card_file);
+  error("%s: couldn't open mem card file `%s'.\n", cmd_name,card_file);
   /* not fatal, get a blanked 1024k */
   do_munmap=0;	/* don't try to munmap this! */
   if((cardmem=calloc(card_size*1024,1))==NULL)
-    fprintf(stderr,"%s: out of memory.\n",cmd_name),exit(1);
+    {
+    fatal("%s: out of memory.\n",cmd_name);
+    }
   }
 
 return(cardmem);
@@ -230,7 +262,7 @@ FILE *out;
 char *ram_file=libdir(nc200?"nc200.ram":(nc150?"nc150.ram":"nc100.ram"));
 
 if((out=fopen(ram_file,"wb"))==NULL)
-  fprintf(stderr,"%s: couldn't write RAM to `%s'.\n",cmd_name,ram_file);
+  error("%s: couldn't write RAM to `%s'.\n",cmd_name,ram_file);
 else
   {
   fwrite(x,1024,(nc200|nc150)?128:64,out);
@@ -249,8 +281,7 @@ if(printout) fclose(printout);
 #ifdef USE_MMAP_FOR_CARD
 
 if(do_munmap && munmap(x,card_size*1024)==-1)
-  fprintf(stderr,"%s: couldn't munmap() mem card file `%s'.\n",
-  	cmd_name,card_file);
+  error("%s: couldn't munmap() mem card file `%s'.\n", cmd_name,card_file);
 
 #else
 FILE *out;
@@ -258,8 +289,7 @@ FILE *out;
 if(card_size>0)
   {
   if((out=fopen(card_file,"wb"))==NULL)
-    fprintf(stderr,"%s: couldn't write mem card to `%s'.\n",
-    	cmd_name,card_file);
+    error("%s: couldn't write mem card to `%s'.\n", cmd_name,card_file);
   else
     {
     fwrite(x,1024,card_size,out);
@@ -632,32 +662,24 @@ void set_soundfreq(void) /* calculate frequencies for sound generator */
  if ((sound[1] & SOUND_OFF) || (sound[0] + sound[1] == 0)) /* MSB set = sound channel 1 off */
  {
  	freq1 = 0; /* freq2 = 0 => sound channel turned off */
-#ifdef DEBUG
- 	printf("Sound channel 1 off\n");
-#endif
+ 	DEBUGMSG("Sound channel 1 off\n");
  }
  else /* sound channel 1 on */
  {
  	freq1 = (float)1000000 / ((float)(sound[0] + sound[1]*256) * (float)2 * (float)1.6276);
-#ifdef DEBUG
- 	printf("Sound channel 1: %fHz\n", freq1);
-#endif
+ 	DEBUGMSG("Sound channel 1: %fHz\n", freq1);
  }
 
  /* sound channel 2 */
  if ((sound[3] & SOUND_OFF) || (sound[2] + sound[3] == 0)) /* MSB set = sound channel 2 off */
  {
  	freq2 = 0;  /* freq1 = 0 => sound channel turned off */
-#ifdef DEBUG
- 	printf("Sound channel 2 off\n");
-#endif
+ 	DEBUGMSG("Sound channel 2 off\n");
  }
  else /* sound channel 2 on */
  {
  	freq2 = (float)1000000 / ((float)(sound[2] + sound[3]*256) * (float)2 * (float)1.6276);
-#ifdef DEBUG
- 	printf("Sound channel 2: %fHz\n", freq2);
-#endif
+ 	DEBUGMSG("Sound channel 2: %fHz\n", freq2);
  }
 }
 
@@ -667,15 +689,15 @@ static int ts=(13<<8);	/* num. t-states for this out, times 256 */
 static int mx=0,my=0,mb=0;
 
 // Print Port number, but ignore keyboard reads
-// if(((l<0xB0)||(l>0xB9)) &&(l!=0x90))printf("***DEBUG*** Read from Port: &%02X\n", l);
+if(((l<0xB0)||(l>0xB9)) &&(l!=0x90)) DEBUGMSG("Read from Port: &%02X\n", l);
 
 /* h is ignored by the NC100 */
 switch(l)
   {
   /* Floppy */
-  case 0xe0: // Status regitser
+  case 0xe0: // Status register
   	/* debug: show location of memory read*/
-  	// printf("Memory: 1:&%04x 2:&%04x 3:&%04x 4:&%04x\n",(memptr[0]-mem)/16384,(memptr[1]-mem)/16384,(memptr[2]-mem)/16384,(memptr[3]-mem)/16384);
+  	DEBUGMSG("Memory: 1:&%04x 2:&%04x 3:&%04x 4:&%04x\n",(memptr[0]-mem)/16384,(memptr[1]-mem)/16384,(memptr[2]-mem)/16384,(memptr[3]-mem)/16384);
   	return (ts|fdc_getmainstatus());
   	// return(ts|fdc_getmainstatus()); // Invertiertes Statusregister
   case 0xe1: /// Data register
@@ -707,8 +729,8 @@ switch(l)
     return(ts|card_status);
   
   case 0x90:	/* IRQ status */
-      	// printf("Memory: 1:&%04x 2:&%04x 3:&%04x 4:&%04x\n",(memptr[0]-mem)/16384,(memptr[1]-mem)/16384,(memptr[2]-mem)/16384,(memptr[3]-mem)/16384);
-	// printf("INT SOURCE requested at PC=&%04X\n", pc);
+    DEBUGMSG("Memory: 1:&%04x 2:&%04x 3:&%04x 4:&%04x\n",(memptr[0]-mem)/16384,(memptr[1]-mem)/16384,(memptr[2]-mem)/16384,(memptr[3]-mem)/16384);
+	DEBUGMSG("INT SOURCE requested at PC=&%04X\n", pc);
     return(ts|irq_status);
   
   case 0x80:	/* NC200 printer busy */
@@ -776,7 +798,7 @@ switch(l)
   case 0x2d:	/* read y low */
     return(ts|my);
   default:
-  	printf("IN from unknown Port: &%02x\n", l);
+  	DEBUGMSG("IN from unknown Port: &%02x\n", l);
   	break;
   }
 
@@ -791,7 +813,7 @@ static int printer_byte=0;	/* data output to port 0x40 */
 static int printer_strobe=1;	/* normal state is high */
 static int ts=13;		/* num. t-states for this out */
 
-// printf("***DEBUG*** Port output to &%02X, Value &%02X\n", l,a);
+DEBUGMSG("Port output to &%02X, Value &%02X\n", l,a);
 
 /* h is ignored by the NC100 */
 switch(l)
@@ -815,7 +837,7 @@ switch(l)
     return(ts);
   
   case 0xc1:    /* sets up various serial parms which we ignore */
-    // printf("Serial config: %02X\n", a);
+    DEBUGMSG("Serial config: %02X\n", a);
     return(ts);
   
   case 0x90:	/* IRQ status */
@@ -840,14 +862,14 @@ switch(l)
     return(ts);
   
   case 0x40:	/* parallel port data */
-    printf("Paralle port write: %i\n", a);
-    printf("Memory: 1:&%04x 2:&%04x 3:&%04x 4:&%04x\n",(memptr[0]-mem)/16384,(memptr[1]-mem)/16384,(memptr[2]-mem)/16384,(memptr[3]-mem)/16384);
+    DEBUGMSG("Paralle port write: %i\n", a);
+    DEBUGMSG("Memory: 1:&%04x 2:&%04x 3:&%04x 4:&%04x\n",(memptr[0]-mem)/16384,(memptr[1]-mem)/16384,(memptr[2]-mem)/16384,(memptr[3]-mem)/16384);
     printer_byte=a;	/* not written until strobe is pulsed */
     return(ts);
   
   case 0x30:	/* baud rate etc., ignored except for printer strobe */
     /* bit 6 is the strobe - low then high means print byte. */
-    printf("Baud Rate Generator: %02X\n", a); 
+    DEBUGMSG("Baud Rate Generator: %02X\n", a); 
     if(!printer_strobe && (a&0x40))
       put_printer_byte(printer_byte);
     printer_strobe=(a&0x40);
@@ -902,16 +924,14 @@ if(*binfile_name)
   
   /* only if it's the PD ROM */
   if(!using_pd_rom)
-    fprintf(stderr,
-    	"%s: can only load a file to boot with PD ROM (try `-p').\n",
-    	cmd_name);
+    error("%s: can only load a file to boot with PD ROM (try `-p').\n", cmd_name);
   else
     {
     /* blast the context-save magic so it jumps to 100h */
     memset(mem+RAM_START+0xb200,0,4);
     
     if((in=fopen(binfile_name,"rb"))==NULL)
-      fprintf(stderr,"%s: couldn't open file `%s'.\n",cmd_name,binfile_name);
+      error("%s: couldn't open file `%s'.\n",cmd_name,binfile_name);
     else
       fread(mem+RAM_START+0x100,1,49152,in),fclose(in);
     }
@@ -966,13 +986,13 @@ switch(*cmd_name)
   case 'x': printf("Xlib"); break;
   case 'd': printf("SDL"); break;
   default:
-    printf("tty");
+    printf("???");
   }
 printf("-based version of nc100em.\n\n");
 
 printf("usage: %s [-d25hmps] [-r refresh_rate] [-S scale] "
 	"[file_to_boot.bin]\n\n",cmd_name);
-printf("\n"
+printf(
 "\t-d\truns NC100em in debug mode.\n"
 "\t-2\temulate an NC200, rather than an NC100.\n"
 "\t-5\temulate an NC150, rather than an NC100.\n"
@@ -1047,24 +1067,16 @@ do
       switch(optopt)
         {
         case 'r':
-          fprintf(stderr,"%s: "
-          	"the -r option needs a refresh rate argument.\n",
-                cmd_name);
+          error("%s: the -r option needs a refresh rate argument.\n", cmd_name);
           break;
         case 'S':
-          fprintf(stderr,"%s: "
-          	"the -S option needs a scaling factor argument.\n",
-                cmd_name);
+          error("%s: the -S option needs a scaling factor argument.\n", cmd_name);
           break;
         case 's':
-          fprintf(stderr,"%s: "
-            "the -s option needs a device name argument.\n",
-                cmd_name);
+          error("%s: the -s option needs a device name argument.\n", cmd_name);
           break;
         default:
-          fprintf(stderr,"%s: "
-          	"option `%c' not recognised.\n",
-                cmd_name,optopt);
+          error("%s: option `%c' not recognised.\n", cmd_name,optopt);
         }
       exit(1);
     case -1:

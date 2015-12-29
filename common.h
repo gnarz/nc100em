@@ -29,6 +29,9 @@ extern float freq1, freq2;
 extern int nc200;
 extern int nc150;
 
+extern void debugmsg(const char* msg, ...);
+extern void error(const char* msg, ...);
+extern void fatal(const char* msg, ...);
 
 extern void writeram(unsigned char *x);
 extern void writecard(unsigned char *x);
@@ -40,3 +43,9 @@ extern void serout_flush(void);
 extern void common_init(void);
 extern void startsigsandtimer(void);
 extern void parseoptions(int argc,char *argv[]);
+
+#ifdef DEBUG
+#define DEBUGMSG(msg, ...) debugmsg(msg, ...)
+#else
+#define DEBUGMSG(...)
+#endif
