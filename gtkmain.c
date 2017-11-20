@@ -381,7 +381,8 @@ switch(event->keyval)
   case GDK_Super_L: case GDK_Super_R:
   case GDK_Hyper_L: case GDK_Hyper_R:
     keyports[1]&=~0x01; break;
-
+  case GDK_Home: case GDK_Menu:
+    keyports[7]&=~0x10; break;
   case GDK_Return: 
     keyports[0]&=~0x10; break;
   case GDK_Control_L:
