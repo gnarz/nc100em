@@ -15,6 +15,9 @@
 #define MAXPARAM 4
 #define WRITEOP(s) strcpy(decodeptr,s); decodeptr += strlen(s);  
 
+// MMU status
+extern unsigned char lastpageout[4];
+
 // disassembler tables
 char decode_r[][7]   = {"B", "C", "D", "E", "H", "L", "(HL)", "A",
                         "B", "C", "D", "E", "IXH", "IXL", "(IX+d)", "A",
@@ -40,7 +43,7 @@ void debug(z80regs regs, int *breakflag) {
 	static int breakpoint = -1;
 	
 	if ((*regs.pc == breakpoint) && (breakpoint != -1)) *breakflag = 1; // breakpoint reached
-	
+
 	if(*breakflag) { // stop execution and debug
 		do {
 			// print status
@@ -49,10 +52,11 @@ void debug(z80regs regs, int *breakflag) {
 				*regs.pc, *regs.i, *regs.r, *regs.a, *regs.f, *regs.b, *regs.c, *regs.d, *regs.e, *regs.h, *regs.l, *regs.iff1, *regs.iff2);
 			printf("IX=&%04X IY=&%04X AF'=&%02X%02X BC'=&%02X%02X DE'=&%02X%02X HL'=&%02X%02X IM=&%02X SP=&%04X\n",
 				*regs.ix, *regs.iy, *regs.a1, *regs.f1, *regs.b1, *regs.c1, *regs.d1, *regs.e1, *regs.h1, *regs.l1, *regs.im, *regs.sp);
-			printf("[r]un [s]tep [h]exdump [i]nput [d]isasm. [b]reakpoint [l]load [w]rite [q]uit\n\n");
+			printf("[r]un [s]tep [h]exdump [i]nput [d]isasm [b]reakpt [m]mu [l]load [w]rite [q]uit\n\n");
 		
 			// show debugger command line
-			readstr("NC>",cmdln,80);
+			disasm(*regs.pc,0);
+			readstr("NC>",cmdln,80,1);
 			parsecmd(cmdln,cargs);
 			switch(cmdln[0]) {
 				case 'r':
@@ -85,8 +89,11 @@ void debug(z80regs regs, int *breakflag) {
 						breakpoint = cargs[0]%0x10000;
 					}
 					break;
+				case 'm': // MMU status command
+					printf("MMU: &%02X &%02X &%02X &%02X\n\n", lastpageout[0], lastpageout[1], lastpageout[2], lastpageout[3]);
+					break;
 				case 'l': // load command
-					readstr("Enter file name:", filename, 200);
+					readstr("Enter file name:", filename, 200, 0);
 					if (cargs[0] == -1) {
 						printf("Start address:");
 						scanf("%x", &(cargs[0]));
@@ -94,7 +101,7 @@ void debug(z80regs regs, int *breakflag) {
 					memload(filename, cargs[0]); 
 					break;
 				case 'w': // write command
-					readstr("Enter file name:", filename, 200);
+					readstr("Enter file name:", filename, 200, 0);
 					if (cargs[0] == -1) {
 						printf("Start address:");
 						scanf("%x", &(cargs[0]));
@@ -623,14 +630,14 @@ void disasm(unsigned int startaddr, unsigned int length) {
 		
 } /* disasm() */
 
-void readstr(char *prompt, char *stringvar, int maxlen) { /* read string from STDIN */
+void readstr(char *prompt, char *stringvar, int maxlen, int maybe0) { /* read string from STDIN */
 	/* Code */
 	do {
 		printf("%s", prompt);
 		fgets(stringvar, maxlen, stdin);
 		if (stringvar[strlen(stringvar)-1] == '\n')
 			stringvar[strlen(stringvar)-1] = 0;
-	} while (strlen(stringvar) == 0);
+	} while (!maybe0 && strlen(stringvar) == 0);
 }
 
 int parsecmd(char *cmdln, int *cargs) {

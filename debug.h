@@ -23,7 +23,7 @@ typedef struct _z80regs {
 
 // Prototypendeklaration
 void debug(z80regs regs, int *breakflag);
-void readstr(char *prompt, char *stringvar, int maxlen);
+void readstr(char *prompt, char *stringvar, int maxlen, int maybe0);
 void dump(unsigned int addr, unsigned int length);
 void memwrite(unsigned int addr);
 int memload(char *filename, unsigned int addr);
